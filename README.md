@@ -2,7 +2,7 @@
 
 Basic implementation example of real-time candle stick chart. Based on NodeJS & Socket.io at the backend, with some help from Bootstrap and AppexCharts at the frontend.
 
-<center><img src="/ungalexyg/sockets-candles-chart/blob/main/static/img/thumb.png?raw=true" alt="thumb.png"></center>
+<center><img src="https://raw.githubusercontent.com/ungalexyg/sockets-candles-chart/main/static/img/thumb.png" alt="thumb.png"></center>
 
 
 1. Clone the repo
