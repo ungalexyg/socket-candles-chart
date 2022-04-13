@@ -1,0 +1,21 @@
+1) Historical data should be stored in a dedicated database.
+The storing process better be decoupled from other processes.
+Once fresh data is generated, it should be stored on pre-defined event, 
+which can be based on several factors, such as the amount of generated data 
+and the timing. The raw data can be processed for optimizations.
+For example, split shorter period - e.g latest month in minutes 
+VS longer periods - e.g last 5 years in months.
+The shorter time frame can be treated with a separate process to contain smaller aggregation times, like hours-to-minutes candle. 
+While the longer time frames can store higher aggregations months-days.
+This data can then be sent to any client up on requests or subscriptions.  
+
+2) This demo implemented with a bit simpler approach   
+by default, the script emitted each number in the loop during it's generation, 
+directly to the server and to the client.
+to avoid some intensive operations at the network, we can collect the records
+and send it in batches to the storage instead of record by record.
+the processes can also be decoupled: 
+- server generate data > store it in the storage
+- client subscribe > server give it data from the storage
+In addition, all the records can be marked with unique ids to improve data integrity in future references.
+
