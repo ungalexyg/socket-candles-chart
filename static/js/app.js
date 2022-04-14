@@ -72,12 +72,15 @@ class Chart {
      * @param Array [{number: 15, time: 1649702709920}, {number: 15, time: 1649702709920}]
      * @return void
      */
-    updateBatch(data) {
-        if (Array.isArray(data)) {
-            for (let i = 0; i < data.length; i++) {
-                this.update(data[i]);
+    async updateBatch(data) {
+        return new Promise(async (resolve, reject) => {
+            if (Array.isArray(data)) {
+                for (let i = 0; i < data.length; i++) {
+                    await this.update(data[i]);
+                }
             }
-        }
+            resolve(true);
+        });
     }
 
     /**
@@ -97,15 +100,16 @@ class Chart {
      *      }];
      * 
      * @param object record {number: 15, time: 1649702709920}
+     * @return void
      */
-    update(record) {
-        this.updateOHLC(record);
-        this.updatePeriod(record);
+    async update(record) {
+        await this.updateOHLC(record);
+        await this.updatePeriod(record);
 
         // update the view only if the ohlc is ready with it's 4 props,
         // otherwise, it might be the begging of a fresh candle, let it load
         if (this.ohlc.length == 4) {
-            this.updateView();
+            await this.updateView();
         }
     }
 
@@ -113,98 +117,107 @@ class Chart {
      * Update current candle's OHLC data based on latest received record
      * 
      * @param object record {number: 15, time: 1649702709920}
-     * @return void
+     * @return Promise
      */
     updateOHLC(record) {
+        return new Promise(resolve => {
+            let open = this.ohlc[0] ?? false;
+            let high = this.ohlc[1] ?? false;
+            let low = this.ohlc[2] ?? false;
+            let close = this.ohlc[3] ?? false;
 
-        let open = this.ohlc[0] ?? false;
-        let high = this.ohlc[1] ?? false;
-        let low = this.ohlc[2] ?? false;
-        let close = this.ohlc[3] ?? false;
+            // update open value
+            if (open === false) {
+                this.ohlc[0] = record.number;
+            }
+            // update high value
+            else if ((high === false && record.number >= open) || (high !== false && record.number >= high)) {
+                this.ohlc[1] = record.number;
+            }
+            // update low value
+            else if ((low === false && record.number <= open) || (low !== false && record.number <= low)) {
+                this.ohlc[1] == 'undefined' ? this.ohlc[1] = open : null; // fill prev val if it's not filled yet
+                this.ohlc[2] = record.number;
+            }
+            // update close value            
+            else if ((record.number >= low && record.number <= high)) {
+                this.ohlc[3] = record.number;
+            }
+            console.log("parseOHLC", this.ohlc);
 
-        // update open value
-        if (open === false) {
-            this.ohlc[0] = record.number;
-        }
-        // update high value
-        else if ((high === false && record.number >= open) || (high !== false && record.number >= high)) {
-            this.ohlc[1] = record.number;
-        }
-        // update low value
-        else if ((low === false && record.number <= open) || (low !== false && record.number <= low)) {
-            this.ohlc[1] == 'undefined' ? this.ohlc[1] = open : null; // fill prev val if it's not filled yet
-            this.ohlc[2] = record.number;
-        }
-        // update close value            
-        else if ((record.number >= low && record.number <= high)) {
-            this.ohlc[3] = record.number;
-        }
-        console.log("parseOHLC", this.ohlc);
+            // set the last record
+            this.lastRecord = record;
 
-        // set the last record
-        this.lastRecord = record;
+            resolve(true);
+        });
     }
 
     /**
      * Handle next aggregation-period (candle) tasks
      * 
      * @param object record {number: 15, time: 1649702709920}
-     * @return void
+     * @return Promise
      */
     updatePeriod(record) {
-
-        // new candle timing handlers
-        this.openAt == 0 ? this.openAt = record.time : null;
-        let nextOpen = this.openAt + this.period;
-        let renewPeriod = record.time >= nextOpen ? true : false;
-        if (!this.loaded) {
-            this.loaded = true;
-            renewPeriod = true;
-        }
-
-        console.log("parsePeriod", 'parsing...',
-            `this.period: ${this.period}`,
-            `this.openAt: ${this.openAt}`,
-            `nextOpen: ${nextOpen}`,
-            `record.time: ${record.time}`,
-            `renewPeriod: ${renewPeriod}`
-        );
-
-        // is it time to prep new candle?
-        if (renewPeriod) {
-            console.log('parsePeriod', 'new-period');
-            $('.aggBadge').fadeOut().fadeIn(); // minor effect in the status bar on new candle initiation
-
-            // if yes, set new open time
-            this.openAt = record.time;
-            // reset the ohlc for next period
-            this.ohlc = [];
-
-            // push new chart data entry
-            this.data.push({
-                x: record.time,
-                y: this.ohlc
-            });
-
-        } else { // no need to push new candle yet, just update last one's ohlc  
-            console.log('parsePeriod', 'old-period');
-            if (this.data[this.data.length - 1]) {
-                this.data[this.data.length - 1].y = this.ohlc;
+        return new Promise(resolve => {
+            // new candle timing handlers
+            this.openAt == 0 ? this.openAt = record.time : null;
+            let nextOpen = this.openAt + this.period;
+            let renewPeriod = record.time >= nextOpen ? true : false;
+            if (!this.loaded) {
+                this.loaded = true;
+                renewPeriod = true;
             }
-        }
+
+            console.log("parsePeriod", 'parsing...',
+                `this.period: ${this.period}`,
+                `this.openAt: ${this.openAt}`,
+                `nextOpen: ${nextOpen}`,
+                `record.time: ${record.time}`,
+                `renewPeriod: ${renewPeriod}`
+            );
+
+            // is it time to prep new candle?
+            if (renewPeriod) {
+                console.log('parsePeriod', 'new-period');
+                $('.aggBadge').fadeOut().fadeIn(); // minor effect in the status bar on new candle initiation
+
+                // if yes, set new open time
+                this.openAt = record.time;
+                // reset the ohlc for next period
+                this.ohlc = [];
+
+                // push new chart data entry
+                this.data.push({
+                    x: record.time,
+                    y: this.ohlc
+                });
+
+            } else { // no need to push new candle yet, just update last one's ohlc  
+                console.log('parsePeriod', 'old-period');
+                if (this.data[this.data.length - 1]) {
+                    this.data[this.data.length - 1].y = this.ohlc;
+                }
+            }
+            resolve(true);
+        });
     }
 
     /**
      * Update chart view
      * 
-     * @return void
+     * @return Promise
      */
     updateView() {
-        console.log('updateView');
-        this.chart.updateSeries([{
-            name: 'Updates',
-            data: this.data
-        }])
+        return new Promise(resolve => {
+            console.log('updateView');
+            let updateSeriesReturn = this.chart.updateSeries([{
+                name: 'Updates',
+                data: this.data
+            }])
+            console.log('updateSeriesReturn:', updateSeriesReturn);
+            resolve(true);
+        });
     }
 
     /**
@@ -213,15 +226,18 @@ class Chart {
      * reset the chart's data
      * also reset last record for the next batch
      * so that the server will know bring all the data from the begging
-     * @return void
+     * @return Promise
      */
     resetView() {
-        console.log('resetView');
-        this.lastRecord = false;
-        this.chart.updateSeries([{
-            name: 'Updates',
-            data: []
-        }])
+        return new Promise(resolve => {
+            console.log('resetView');
+            this.lastRecord = false;
+            this.chart.updateSeries([{
+                name: 'Updates',
+                data: []
+            }])
+            resolve(true);
+        });
     }
 }
 
@@ -272,10 +288,10 @@ class App {
      */
     bindPeriod() {
         let $aggSelect = $('#aggSelect');
-        $aggSelect.change(() => {
+        $aggSelect.change(async () => {
             console.log('app-updating-chart-period', chart.period);
             let secsPeriod = parseInt($aggSelect.val());
-            chart.resetView();
+            await chart.resetView();
             chart.setPeriod(secsPeriod);
             $('.aggBadge')
                 .fadeOut()

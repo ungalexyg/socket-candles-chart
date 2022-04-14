@@ -18,4 +18,4 @@ the processes can also be decoupled:
 - server generate data > store it in the storage
 - client subscribe > server give it data from the storage
 In addition, all the records can be marked with unique ids to improve data integrity in future references.
-
+Update: to prevent data slippage at the frontend, it should be rendered with async handlers & promises in the relevant areas.
